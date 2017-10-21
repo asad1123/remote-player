@@ -24,7 +24,6 @@ def findSong():
     if request.method == 'POST':
         songInfo['songTitle'] = request.form['songTitle']
         songInfo['artistName'] = request.form['artistName']
-        print "Playing %s by %s" % (songInfo['songTitle'], songInfo['artistName'])
         registeredDevices = client.get_registered_devices()
         #Picking LG device by default for now
         songInfo['deviceID'] = registeredDevices[0]['id']
@@ -39,6 +38,14 @@ def playSong(songInfo):
     searchQuery = songInfo['songTitle'] + "+" + songInfo['artistName']
     searchResults = client.search(searchQuery, max_results=5)
     topResult = searchResults['song_hits'][0]['track']
+
+    # Grab song info
+    albumArt = topResult['albumArtRef']
+    songTitle = topResult['title']
+    artist = topResult['albumArtist']
+    songGenre = topResult['genre']
+    print "Playing %s by %s" % (songTitle, artist)
+
     streamURL = client.get_stream_url(topResult['storeId'], songInfo['deviceID'][2:])
     subprocess.call(['mpv', streamURL])
     mutex.release()
