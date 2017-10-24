@@ -9,6 +9,7 @@ import Queue
 
 app = Flask(__name__)
 songInfo ={}
+song = {}
 songQueue = Queue.Queue()
 mutex = threading.Lock()
 
@@ -27,26 +28,33 @@ def findSong():
         registeredDevices = client.get_registered_devices()
         #Picking LG device by default for now
         songInfo['deviceID'] = registeredDevices[0]['id']
-        songQueue.put(songInfo)        
+        songQueue.put(songInfo)
+        
         mutex.acquire()
-        playSong(songQueue.get())
+        songToPlay = searchForSong(songQueue.get())
+        playSong(songToPlay['id'], songInfo['deviceID'][2:])
         
     return render_template('index.html', form=form)
 
-def playSong(songInfo):
+def searchForSong(songInfo):
     #Search for song
     searchQuery = songInfo['songTitle'] + "+" + songInfo['artistName']
     searchResults = client.search(searchQuery, max_results=5)
     topResult = searchResults['song_hits'][0]['track']
-
+    
     # Grab song info
-    albumArt = topResult['albumArtRef']
-    songTitle = topResult['title']
-    artist = topResult['albumArtist']
-    songGenre = topResult['genre']
-    print "Playing %s by %s" % (songTitle, artist)
+    song['duration'] = int(topResult['durationMillis']) / 1000
+    song['albumArt'] = topResult['albumArtRef']
+    song['title'] = topResult['title']
+    song['artist'] = topResult['albumArtist']
+    song['genre'] = topResult['genre']
+    song['id'] = topResult['storeId']
+    print "Playing %s by %s" % (song['title'], song['artist'])
+    
+    return song
 
-    streamURL = client.get_stream_url(topResult['storeId'], songInfo['deviceID'][2:])
+def playSong(songID, deviceID):
+    streamURL = client.get_stream_url(songID, deviceID)
     subprocess.call(['mpv', streamURL])
     mutex.release()
     
